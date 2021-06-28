@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Example of Simple jQuery Powered Web Page</title>
+<link rel="stylesheet"
+	href="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/css/bootstrap.min.css">
+<style type="text/css">
+input[type="search"] {
+	-webkit-box-sizing: content-box;
+	-moz-box-sizing: content-box;
+	box-sizing: content-box;
+	-webkit-appearance: searchfield;
+}
+
+input[type="search"]::-webkit-search-cancel-button {
+	-webkit-appearance: searchfield-cancel-button;
+}
+</style>
+</head>
+<body>
+
+	<div class="container bs-docs-container">
+		<div class="row" style="text-align: center">
+			<h1>SEP性能测试转换工具</h1>
+		</div>
+		<div class="row">
+			<div class="col-md-9" role="main">
+				<form id="myForm">
+					<div class="form-group">
+						<label style="color: red">版本*</label> <input type="search"
+							class="form-control" id="version" placeholder="输入模块，默认值version"
+							value="version" required>
+					</div>
+					<div class="form-group">
+						<label style="color: red">模块*</label> <input type="search"
+							class="form-control" id="module" placeholder="输入模块，默认值Api"
+							value="Api" required>
+					</div>
+					<div class="form-group">
+						<label style="color: red">接口名称*</label> <input type="search"
+							class="form-control" id="api" placeholder="输入接口名" value=""
+							required>
+					</div>
+					<div class="form-group">
+						<label>前置函数名称</label> <input type="search" class="form-control"
+							id="setup" placeholder="输入前置函数" value="">
+					</div>
+				</form>
+				<hr>
+				<div>
+					<table class="table table-striped">
+						<thead>
+							<tr>
+								<th>key</th>
+								<th>value</th>
+								<th>操作</th>
+							</tr>
+						</thead>
+						<tbody id="kvTbody">
+							<tr>
+								<td><input type="text" class="form-control kdata"
+									placeholder="输入字段名称"></td>
+								<td><input type="text" class="form-control vdata"
+									placeholder="输入字段值"></td>
+								<td><button class="cloneKeyValue">复制</button>
+									<button class="removeKeyValue">删除</button></td>
+							</tr>
+						</tbody>
+					</table>
+					<hr>
+					<div class="form-group">
+						<button id="generate" class="btn btn-warning" >生成</button>
+					</div>
+				</div>
+				<div>
+					<div class="alertData">
+						<form class="form-inline">
+							<div class="form-group alert alert-success col-lg-12">
+								<div class="col-lg-10 alterResult" id="alertUri"></div>
+								<div class="col-lg-2">
+									<button class="copyMe" data-clipboard-action="copy"
+										data-clipboard-target="#alertUri"
+										onclick="event.preventDefault()">点我复制</button>
+								</div>
+
+							</div>
+
+						</form>
+						<form class="form-inline">
+							<div class="form-group alert alert-success col-lg-12">
+								<div class="col-lg-10 alterResult" id="alertHeader"></div>
+								<div class="col-lg-2">
+									<button class="copyMe" data-clipboard-action="copy"
+										data-clipboard-target="#alertHeader"
+										onclick="event.preventDefault()">点我复制</button>
+								</div>
+
+							</div>
+
+						</form>
+						<form class="form-inline">
+							<div class="form-group alert alert-success col-lg-12">
+								<div class="col-lg-10 alterResult" id="alertBody"></div>
+								<div class="col-lg-2">
+									<button class="copyMe" data-clipboard-action="copy"
+										data-clipboard-target="#alertBody"
+										onclick="event.preventDefault()">点我复制</button>
+								</div>
+
+							</div>
+
+						</form>
+						<div class="form-group alert alert-default alertInfo alterResult"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script
+	src="http://static.runoob.com/assets/jquery-validation-1.14.0/dist/jquery.validate.min.js"></script>
+<script
+	src="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<script
+	src="https://cdn.jsdelivr.net/clipboard.js/1.5.3/clipboard.min.js"></script>
+
+<script>
+	String.prototype.format = function() {
+		if (arguments.length == 0)
+			return this;
+		for (var s = this, i = 0; i < arguments.length; i++)
+			s = s.replace(new RegExp("\\{" + i + "\\}", "g"), arguments[i]);
+		return s;
+	};
+
+	$(document).ready(function() {
+		$("#myForm").validate();
+	});
+
+	var clipboard = new Clipboard('.copyMe');
+
+	$(".alertData").hide();
+
+	$(document).ready(function() {
+		$("h1").css("color", "#0088ff");
+	});
+
+	$(".cloneKeyValue").on('click', function() {
+		var closestRow = $(this).closest('tr');
+		var cloneElement = closestRow.clone(true);
+		closestRow.after(cloneElement);
+	});
+
+	$(".removeKeyValue").on('click', function() {
+		var closestTbody = $(this).closest('tbody');
+		if (closestTbody.find(".removeKeyValue").length == 1) {
+			return false;
+		}
+		var closestRow = $(this).closest('tr');
+		closestRow.remove();
+	});
+
+	$("#generate").on('click', function() {
+		$(".alterResult").empty();
+
+		var jsonData = genData();
+
+		$("#alertUri").append(jsonData.uri);
+		$("#alertHeader").append(jsonData.headers);
+		$("#alertBody").append(jsonData.body);
+		$(".alertInfo").append("数据生成于" + new Date() + ", 有问题请联系邱晓帆");
+
+		$(".alertData").show();
+	});
+
+	function genJson() {
+		var kvData = {};
+		$("#kvTbody").find("tr").each(function(index, element) {
+			var kData = $(element).find(".kdata").val();
+			var vdata = $(element).find(".vdata").val();
+
+			if (!kData.trim() && !vdata.trim()) {
+				return "";
+			}
+
+			if (!kData.trim() && vdata.trim()) {
+				alert("字段名称不能为空");
+				return false;
+			}
+
+			kvData[kData.trim()] = vdata.trim();
+		})
+
+		var jsonData = JSON.stringify(kvData);
+		console.log(jsonData);
+		return jsonData;
+	}
+
+	function genData() {
+		var result = {};
+		var version = $("#version").val();
+		var module = $("#module").val();
+		var api = $("#api").val();
+		var setup = $("#setup").val();
+		var jsonData = genJson().replace(/"/g, '\'');
+
+		if (setup) {
+			jsonData = setup + "(host,version)";
+		}
+
+		//{{get_uri(version,'Api','sense_link_device_control_door_open',host,**{'device_id':'SPS_sie22992'})['uri']}}
+		var formatUri = "{{get_uri('{0}')}}".format(api);
+		console.log(formatUri);
+
+		//"{{get_header(version,'Api',api,host,**{})}}:dict"
+		var formatHeaders = "\"{{get_headers({0},'{1}','{2}',host,**{3})}}:dict\""
+				.format(version, module, api, jsonData);
+		console.log(formatHeaders);
+
+		//"{{get_body(version,'Api',api,host,**{})}}:dict"
+		var formatBody = "\"{{get_body('{0}')}}:dict\"".format(api);
+		console.log(formatBody);
+
+		result.uri = formatUri;
+		result.headers = formatHeaders;
+		result.body = formatBody;
+		return result;
+	}
+</script>
+</html>
