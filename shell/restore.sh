@@ -88,6 +88,8 @@ edge(){
 	echo "[afd]Start uncompressing data ..."
 	tar -zxvf $package_afd > /dev/null 2>&1
 	rm -rf $package_afd
+	cd $senselink_config_path/afd_data/logs/rs-0/0/
+	md5sum *.wal > 1.md5
 	echo "[afd]Finished"
 	
 	#兼容老的没有迁移afd_data目录的情况
@@ -114,7 +116,8 @@ edge(){
 	
 	echo "Restore works are finished, please check below summary."
 	echo "******************************************"
-	db_id=`curl -s 'http://localhost:8188/v1/databases' | python3 -c "import sys, json; print(json.load(sys.stdin)['db_infos'][0]['db_id'])"`
+	sql_get_viper_db_id="select viper_db_id from bi_slink_base.t_company limit 1;"
+	db_id=`mysql -h${HOSTNAME} -P${PORT} -u${USERNAME} -e "${sql_get_viper_db_id}" | grep -v viper_db_id`
 	echo "feature db_id: "$db_id
 	db_size=`curl -s 'http://localhost:8188/v1/databases/'$db_id | python3 -c "import sys, json; print(json.load(sys.stdin)['db_info']['indexes'][0]['size'])"`
 	echo "feature size: "$db_size
@@ -140,7 +143,7 @@ swap_seconds ()
 
 #main function start from here
 echo "Please choose to restore:"
-echo "1 - 1w"
+echo "1 - 100w"
 echo "2 - 150w"
 
 
@@ -148,7 +151,7 @@ read install_module
 
 case $install_module in
 	1)
-        FTP_FOLDER_NAME="1w"
+        FTP_FOLDER_NAME="100w"
         ;;
 	2)
         FTP_FOLDER_NAME="150w"

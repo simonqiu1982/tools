@@ -42,19 +42,23 @@ install(){
 	[ $? -ne 0 ] && echo "$cluster_lic NOT FOUND"
 	echo "Finished"
 	
-	cd $VIPER_LITE_ROOT/infra 
-	./entrypoint.sh restart
-	sleep 5
 	cd $VIPER_LITE_ROOT/infra/bin
 	./license_client status
+	echo ""
 	
-	n=0
-	until [ "$n" -ge 5 ]
+	create_afd_db="curl -H "Content-Type:application/json" -X POST -d "{\"name\":\"$(date +%s%N)\",\"object_type\":\"face\",\"feature_version\":\"25000\",\"description\":\"performance\",\"db_size\":\"$DB_SIZE\",\"options\":{\"enable_feature_cache\":false}}" http://localhost:8188/v1/databases"
+	response=`$create_afd_db`
+	while [[ "$response" == *"db error"* ]]
 	do
-	   db_id=`curl -H "Content-Type:application/json" -X POST -d "{\"name\":\"$(date +%s%N)\",\"object_type\":\"face\",\"feature_version\":\"25000\",\"description\":\"performance\",\"db_size\":\"$DB_SIZE\",\"options\":{\"enable_feature_cache\":false}}" http://localhost:8188/v1/databases  | python3 -c "import sys, json; print(json.load(sys.stdin)['db_id'])"` && break 
-	   n=$((n+1)) 
-	   sleep 2
+		sleep 1s
+		response=`$create_afd_db`
 	done
+	
+	db_id=`echo $response | python3 -c "import sys, json; print(json.load(sys.stdin)['db_id'])"` 
+	echo ""
+	echo "db_id is created:$db_id"
+	
+	[ ! $db_id ] && echo "db_id is NULL" && exit 2
 	
 	sql_update_viper_db_id="update bi_slink_base.t_company set viper_db_id='$db_id';"
 	sql_get_viper_db_id="select viper_db_id from bi_slink_base.t_company limit 1;"
@@ -62,12 +66,27 @@ install(){
 	mysql -h${HOSTNAME} -P${PORT} -u${USERNAME} -e "${sql_update_viper_db_id}"
 	viper_db_id=`mysql -h${HOSTNAME} -P${PORT} -u${USERNAME} -e "${sql_get_viper_db_id}" | grep -v viper_db_id`
 	
+	echo ""
+	echo "Restarting link and viper lite..."
+	[ -d $LINK_ROOT_PATH ] && cd $LINK_ROOT_PATH && sh stop.sh
+	[ `docker ps -aq | wc -l` -ne 0 ] && docker rm -f $(docker ps -aq)
+	[ -d $LINK_ROOT_PATH ] && cd $LINK_ROOT_PATH && sh start.sh
+	
 	echo "Finished, please check below summary."
 	echo "******************************************"
 	echo "db_id: $db_id"
 	echo "t_company_viper_db_id: $viper_db_id"
-	[ $viper_db_id == $db_id ] && echo "same" || echo "error"
-	max_size=`curl -s 'http://localhost:8188/v1/databases/'$db_id | python3 -c "import sys, json; print(json.load(sys.stdin)['db_info']['max_size'])"`
+	[ $viper_db_id == $db_id ] && echo "Done" || echo "error!!!"
+	
+	db_response=`curl -s 'http://localhost:8188/v1/databases/'$db_id`
+	while [[ "$db_response" == *"db error"* ]]
+	do
+		sleep 1s
+		db_response=`curl -s 'http://localhost:8188/v1/databases/'$db_id`
+	done
+	
+	max_size=`echo $db_response | python3 -c "import sys, json; print(json.load(sys.stdin)['db_info']['max_size'])"`
+	
 	echo "feature size: "$max_size
 	
 	

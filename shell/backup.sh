@@ -55,9 +55,13 @@ edge(){
 	
 	echo "[afd]Start backup data ..."
 	if [ -d  "$senselink_config_path/afd_data" ]; then
+		cd $senselink_config_path/afd_data/logs/rs-0/0/
+		md5sum *.wal > 0.md5
 		cd $senselink_config_path/afd_data
 		tar -zcvf $INSTALL_PACKAGES_PATH/$package_afd * > /dev/null 2>&1
 	elif [ -d  "$LINK_ROOT_PATH/viper-lite/bootstrap/afd/test/worker" ]; then
+		cd $LINK_ROOT_PATH/viper-lite/bootstrap/afd/test/worker/logs/rs-0/0/
+		md5sum *.wal > 0.md5
 		cd $LINK_ROOT_PATH/viper-lite/bootstrap/afd/test/worker
 		tar -zcvf $INSTALL_PACKAGES_PATH/$package_afd * > /dev/null 2>&1
 	else
